@@ -1,0 +1,144 @@
+---
+title: "ECON5821-Presentation"
+author: "re7ird"
+date: "2023-05-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## ECON5811 Final-Presentation
+
+In this presentation, I will introduce my method and show you the results of the performance on training and validation data.
+
+The code below will be different from the version I provide to do multiple tests. The method is the same. In this presentation, I will only show the simple version.
+
+```{r}
+load(url("https://github.com/zhentaoshi/Econ5821/raw/main/data_example/dataset_inf.Rdata"))
+
+library(tidyverse)
+library(glmnet)
+set.seed(10)
+n=2
+```
+
+Prepare dataset:
+
+I want to use the data $x_t$ to predict $y_{t+1}$. I merged cpi data and X, then add a new column y. y is the cpi value of next month, which is the value to be predicted. This assumes that the economic data of this month will affect the cpi data next month. The assumption is not very solid.
+
+```{r}
+#Lag=1:
+data_1=merge(cpi,X,by="month",all = T)
+data_1=data_1 |> mutate(y=lead(CPI))
+```
+
+Dataset x contains 152 variables. These variables are highly correlated. The first method that occurs to me is dimension reduction. The PCA is a good method. I use data from all 168 observations to train the PCA model.
+
+```{r}
+pca_data=data_1 |> select(!c("month","y","CPI"))
+PCA=princomp(pca_data)
+```
+
+```{r}
+summary(PCA)
+```
+
+We can see that the first 8 dimensions can explain more than 95% of the variance. I assume that all other dimensions are noises and the first 8 components contain all the information I need. This assumption is not very solid either.The data in x do not contain all the data I need to predict y. I assume that the conditional expectation $E(y_{t+1}|X_t)$ is stable and other factors do not vary much in one year(12 months). For convenience, I use 12 months of data to train the regression and one month to do the testing(rolling windows).
+
+$$
+E(y_{t+1}|X_t) =\alpha+  X \beta  \quad t \in [i,i+12] \quad
+$$
+
+for any int $i≥1$.
+
+$\beta$ is the coefficient matrix and $\alpha$ is the intercept.
+
+I choose Lasso Regression to do the prediction.
+
+First, I use the data from 12 months to train the lasso regression to fit the parameter.
+
+Then I calculate the PCs for next month and use Lasso Regression to predict inflation.
+
+The code below is just for demonstration.
+
+```{r}
+y_train=data_1[1:12,"y"]
+y_test=data_1[13,"y"]
+x_train=data_1[1:12,] |> select(!c("month","y"))
+x_test=data_1[13,] |> select(!c("month","y"))
+
+#Train the PCA model
+pca_data=data_1 |> select(!c("month","y","CPI"))
+PCA=princomp(pca_data)
+
+#collect 8 Principal Components and train the lasso regression.
+PC=predict(PCA,newdata = x_train)[,1:8]
+
+#Calculate scores for testing
+PC_test=predict(PCA,newdata = x_test)[,1:8]
+
+#Train the Lasso Regression: Find Lambda
+cv_model <- cv.glmnet(PC, y_train, alpha = 1,nfolds = 3)
+best_lambda <- cv_model$lambda.min
+
+#display optimal lambda value
+best_lambda
+
+#view coefficients of best model
+pca_lasso <- glmnet(PC, y_train, alpha = 1, lambda =best_lambda)
+coef(pca_lasso)
+summary(pca_lasso)
+
+#make a prediction for the response value of a new observation
+yp=predict(pca_lasso, s = best_lambda, newx = PC_test)[1,1]
+
+yp
+y_test
+```
+
+I think the inflation of one month will affect the next month so I introduced an alternative model that added the CPI of the month into the Lasso regression.
+
+```{r}
+y_train=data_1[1:12,"y"]
+y_test=data_1[13,"y"]
+x_train=data_1[1:12,] |> select(!c("month","y"))
+x_test=data_1[13,] |> select(!c("month","y"))
+
+#Train the PCA model
+pca_data=data_1 |> select(!c("month","y","CPI"))
+PCA=princomp(pca_data)
+
+#collect 8 Principal Components and train the lasso regression.
+PC=predict(PCA,newdata = x_train)[,1:8]
+
+#Calculate scores for testing
+PC_test=predict(PCA,newdata = x_test)[,1:8]
+
+#Train the Lasso Regression: Find Lambda
+PCs=cbind(PC,x_train$CPI)
+cv_model <- cv.glmnet(PCs, y_train, alpha = 1,nfolds = 3)
+best_lambda <- cv_model$lambda.min
+
+#display optimal lambda value
+best_lambda
+
+#view coefficients of best model
+pca_lasso2 <- glmnet(PCs, y_train, alpha = 1, lambda =best_lambda)
+coef(pca_lasso2)
+summary(pca_lasso2)
+
+#make a prediction for the response value of a new observation
+PC_test2=append(PC_test,x_test$CPI)
+yp=predict(pca_lasso2, s = best_lambda, newx = PC_test2)[1,1]
+
+yp
+y_test
+```
+
+And then I did multiple tests of different parameters.
+
+Lag=1 means I use $X_t$ to predict $y_{t+1}$. I also tried Lag=2 and Lag=3(a quarter) .
+
+I tried PCA with 8, 9, and 10 dimensions. Combining all these differences, I tested 18 models in total.
