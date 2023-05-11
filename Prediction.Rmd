@@ -1,0 +1,47 @@
+---
+title: "Predicted Inflation model"
+output: html_notebook
+---
+
+data_original=merge(X,fake.testing.X,all=T)
+data_predict=merge(cpi,data_original,by="month",all = T)
+data_predict=data_predict |> mutate(y=lead(CPI,n=3)) |> filter(is.na(y)==F)
+
+pca_lasso_test <- function(i,data) {
+  j=i+11
+  k=i+12
+  y_train=data[i:j,"y"]
+  x_train=data[i:j,] |> select(!c("month","y","CPI"))
+  x_predict=data[k,] |> select(!c("month","y","CPI"))
+  
+  pca_data=data |> select(!c("month","y","CPI"))
+  PCA=princomp(pca_data)
+  
+  #collect 8 Principal Components and train the lasso regression.
+  PC=predict(PCA,newdata = x_train)[,1:8]
+  
+  #find lambda
+  cv_model <- cv.glmnet(PC, y_train, alpha = 1)
+  best_lambda <- cv_model$lambda.min
+  
+  #display optimal lambda value
+  best_lambda
+  
+  #view coefficients of best model
+  pca_lasso <- glmnet(PC, y_train, alpha = 1, lambda =best_lambda)
+  coef(pca_lasso)
+  summary(pca_lasso)
+  
+  #make a prediction for the response value of a new observation
+  PC_predict=predict(PCA,newdata = x_predict)[,1:8]
+  yp=predict(pca_lasso, s = best_lambda, newx = PC_predict)[1,1]
+  return(c(yp))
+  
+}
+  y_predicted=vector()
+  for (x in 157:187) {
+
+    results=pca_lasso_test(i = x,data_predict)
+    yp=results[1]
+    y_predicted = append(y_predicted,yp)
+  }
