@@ -17,16 +17,16 @@ load(url("https://github.com/zhentaoshi/Econ5821/raw/main/data_example/dataset_i
 st=Sys.time()
 
 #Lag=1:
-data_1=merge(ppi,X,by="month",all = T)
-data_1=data_1 |> mutate(y=lead(PPI)) |> filter(is.na(y)==F)
+data_1=merge(cpi,X,by="month",all = T)
+data_1=data_1 |> mutate(y=lead(CPI)) |> filter(is.na(y)==F)
 
 #Lag=2:
-data_2=merge(ppi,X,by="month",all = T)
-data_2=data_2 |> mutate(y=lead(PPI,n=2)) |> filter(is.na(y)==F)
+data_2=merge(cpi,X,by="month",all = T)
+data_2=data_2 |> mutate(y=lead(CPI,n=2)) |> filter(is.na(y)==F)
 
 #Lag=3:
-data_3=merge(ppi,X,by="month",all = T)
-data_3=data_3 |> mutate(y=lead(PPI,n=3)) |> filter(is.na(y)==F)
+data_3=merge(cpi,X,by="month",all = T)
+data_3=data_3 |> mutate(y=lead(CPI,n=3)) |> filter(is.na(y)==F)
 
 #Train the PCA model
 pca_data=X |> select(!c("month"))
@@ -46,19 +46,19 @@ pca_lasso_test2 <- function(i,data,wdl) {
   k=i+b
   y_train=data[i:j,"y"]
   y_test=data[k,"y"]
-  x_train=data[i:j,] |> select(!c("month","y","PPI"))
-  x_train_ppi=data[i:j,"PPI"] 
-  x_test=data[k,] |> select(!c("month","y","PPI"))
-  x_test_ppi=data[k,"PPI"]
+  x_train=data[i:j,] |> select(!c("month","y","CPI"))
+  x_train_cpi=data[i:j,"CPI"] 
+  x_test=data[k,] |> select(!c("month","y","CPI"))
+  x_test_cpi=data[k,"CPI"]
   
   
   #collect Principal Components and train the lasso regression.
   PC=predict(PCA,newdata = x_train)[,1:dim]
-  PCs=cbind(PC,x_train_ppi)
+  PCs=cbind(PC,x_train_cpi)
   
   #Calculate scores for testing
   PC_test=predict(PCA,newdata = x_test)[,1:dim]
-  PC_test2=append(PC_test,x_test_ppi)
+  PC_test2=append(PC_test,x_test_cpi)
   
   #find lambda
   cv_model <- cv.glmnet(PCs, y_train, alpha = 1,nfolds = 3)
@@ -124,14 +124,14 @@ runtest <- function(wdl){
       rsqv=append(rsqv,rep_test2(data_1,windowlength))
 
     }
-    rppi <- rsqv
+    rcpi <- rsqv
 
     
-    results <- c(windowlength,mean(rppi))
+    results <- c(windowlength,mean(rcpi))
 
     print("Results:")
-    cat("mean: \t",mean(rppi),"\n")
-    cat("stdev: \t",sd(rppi),"\n")
+    cat("mean: \t",mean(rcpi),"\n")
+    cat("stdev: \t",sd(rcpi),"\n")
     
     return(results)
 } 
@@ -142,7 +142,7 @@ runtest <- function(wdl){
 
 
 dim=8
-res <-  foreach (l = c(12,24,60,84,96,108,120),.combine="cbind") %do%{
+res <-  foreach (l = c(12,24,48,60,72,96,120),.combine="cbind") %do%{
   runtest(wdl = l)
 }
 
@@ -153,14 +153,13 @@ view(res)
 
 pl=data.frame(t(res))
 ggplot(data = pl)+
-  ggtitle("PPI Window Size:")+
+  ggtitle("CPI: Window Size")+
   geom_point(aes(x=window_size,y=R_Square))
-ggsave(filename = "ResultsPPI_6_find_window_size.png")
+ggsave(filename = "ResultsCPI_6_find_window_size.png")
 
-
-print("The best model for PPI:")
-print("Lag=1, with CPI, dim = 8 window size = 84")
-best_rsq=res[2,res[1,]==84]
+print("The best model for CPI:")
+print("Lag=1, with CPI, dim = 8, window size = 60")
+best_rsq=res[2,res[1,]==60]
 cat("Best R-Square = ",best_rsq,"\n")
 
 

@@ -259,7 +259,10 @@ pl=data.frame(res2)
 index=1:6
 pl=cbind(pl,index)
 
+title=paste("CPI Model 2, window size = 12")
+
 ggplot(data = pl)+
+  ggtitle(label = title)+
   geom_line(color = "green", mapping=aes(y=res_1,x=index))+
   geom_line(color = "red", mapping=aes(y=res_2,x=index))+
   geom_line(color = "blue", mapping=aes(y=res_3,x=index))

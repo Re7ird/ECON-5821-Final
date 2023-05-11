@@ -268,7 +268,7 @@ pl=data.frame(res2)
 index=1:6
 pl=cbind(pl,index)
 
-title=paste("Model 6, window size =",windowlength)
+title=paste("PPI Model 6, window size =",windowlength)
 
 ggplot(data = pl)+
   ggtitle(label = title)+

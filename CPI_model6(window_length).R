@@ -9,10 +9,10 @@
 library(tidyverse)
 library(glmnet)
 set.seed(10)
-a=23
-b=24
-z=140
-n=1
+windowlength=60
+a=windowlength-1
+b=windowlength
+z=160-windowlength
 
 
 load(url("https://github.com/zhentaoshi/Econ5821/raw/main/data_example/dataset_inf.Rdata"))
@@ -267,12 +267,15 @@ pl=data.frame(res2)
 index=1:6
 pl=cbind(pl,index)
 
+title=paste("CPI Model 6, window size =",windowlength)
+
 ggplot(data = pl)+
+  ggtitle(label = title)+
   geom_line(color = "green", mapping=aes(y=res_1,x=index))+
   geom_line(color = "red", mapping=aes(y=res_2,x=index))+
   geom_line(color = "blue", mapping=aes(y=res_3,x=index))
 
-ggsave(filename = "ResultsCPI_2.png")
+ggsave(filename = "ResultsCPI_6.png")
 
 ed=Sys.time()
 dr=ed-st
