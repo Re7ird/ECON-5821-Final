@@ -251,10 +251,7 @@ res_3 <-runtest()[1,]
 
 res=rbind(res_1,res_2,res_3)
 res2=t(res)
-par(new = TRUE)
-plot(res2[,1],type = "l")
-plot(res2[,2],type = "l")
-plot(res2[,3],type = "l")
+
 
 pl=data.frame(res2)
 index=1:6
