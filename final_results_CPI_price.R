@@ -12,16 +12,14 @@ set.seed(10)
 windowlength=60
 dim=8
 
-#load(url("https://github.com/zhentaoshi/Econ5821/raw/main/data_example/dataset_inf.Rdata"))
+load("data/dataset_inf.Rdata")
+load("data/data_oos.Rdata")
 
-
-## Create a placeholder for y
-fake.testing.cpi=tibble(month=169:198,CPI=100)
 
 
 #Lag=1 data:
-data_1=rbind(X,fake.testing.X)
-data_1=merge(rbind(cpi,fake.testing.cpi),data_1,by="month",all = T)
+data_1=rbind(X,real.X)
+data_1=merge(rbind(cpi,real.cpi),data_1,by="month",all = T)
 data_1=data_1 |> mutate(y=lead(CPI))
 
 #Train the PCA model
@@ -85,7 +83,7 @@ rsquare_test <- function(yt,y_predicted) {
 
 rep_test2 <- function(data){
   
-  result <-foreach (x = 50:100,.combine = "rbind") %dopar% {
+  result <-foreach (x = 1:(197-windowlength),.combine = "rbind") %dopar% {
     pca_lasso_test2(i = x,data)
   }
   result=data.frame(result)
@@ -94,18 +92,32 @@ rep_test2 <- function(data){
   
 }
 
+#### This is the final prediction of CPI
 result <- rep_test2(data_1)
-yp=result$CPI_predicted
-yt=result$CPI_true
+
+## Test the prediction out of sample R Square
+
+
+yp=result[result$month %in% 1:198,]$CPI_predicted
+yt=result[result$month %in% 1:198,]$CPI_true
 
 #R-Square of price prediction
 rsquare_test(yt,yp)
+
+## calculate inflation rate
 
 result=result |> mutate(inflation_predicted=log(CPI_predicted)-log(lag(CPI_true,n=12)),
                         inflation_true=log(CPI_true)-log(lag(CPI_true,n=12))
                         )
 result2=result |> filter(is.na(inflation_predicted)==F)
-rsquare_test(result2$inflation_true,y_predicted = result2$inflation_predicted)
 
+inf_p=result2[result2$month %in% 13:198,]$inflation_predicted
+inf_t=result2[result2$month %in% 13:198,]$inflation_true
+
+#R-Square of inflation
+rsquare_test(inf_t,inf_p)
+
+###Result2 is the final answer
+result2
 
 

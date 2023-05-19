@@ -10,7 +10,7 @@ set.seed(10)
 n=5
 
 
-load(url("https://github.com/zhentaoshi/Econ5821/raw/main/data_example/dataset_inf.Rdata"))
+#load(url("https://github.com/zhentaoshi/Econ5821/raw/main/data_example/dataset_inf.Rdata"))
 
 
 #-----------------Start-----------------#
@@ -155,6 +155,7 @@ pl=data.frame(t(res))
 ggplot(data = pl)+
   ggtitle("CPI: Window Size")+
   geom_point(aes(x=window_size,y=R_Square))
+
 ggsave(filename = "ResultsCPI_6_find_window_size.png")
 
 print("The best model for CPI:")

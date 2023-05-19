@@ -14,6 +14,8 @@ a=windowlength-1
 b=windowlength
 z=160-windowlength
 
+n=2
+
 
 load(url("https://github.com/zhentaoshi/Econ5821/raw/main/data_example/dataset_inf.Rdata"))
 

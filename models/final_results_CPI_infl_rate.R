@@ -8,21 +8,19 @@ library(doParallel)
 registerDoParallel(detectCores()-1)
 set.seed(10)
 
-
-windowlength=60
 dim=8
 
-#load(url("https://github.com/zhentaoshi/Econ5821/raw/main/data_example/dataset_inf.Rdata"))
+load("data/dataset_inf.Rdata")
+load("data/data_oos.Rdata")
 
 
-## Create a placeholder for y
-fake.testing.cpi=tibble(month=169:198,CPI=100)
 
 
 #Lag=1 data:
-data_1=rbind(X,fake.testing.X)
-data_1=merge(rbind(cpi,fake.testing.cpi),data_1,by="month",all = T)
-data_1=data_1 |> mutate(y=lead(CPI))
+data_1=rbind(X,real.X)
+data_1=merge(rbind(cpi,real.cpi),data_1,by="month",all = T)
+data_1=data_1 |> mutate(inflation=log(CPI)-log(lag(CPI,n=12)))
+data_1=data_1 |> mutate(y=lead(inflation))|> select(!c("CPI"))
 
 #Train the PCA model
 pca_data=X |> select(!c("month"))
@@ -31,26 +29,23 @@ PCA=princomp(pca_data)
 ##------------------------------#Functions:---------------------------##
 
 pca_lasso_test2 <- function(i,data) {
-  a=windowlength-1
-  b=windowlength
-  
-  j=i+a
-  k=i+b
+  j=i+59.  #training data end month
+  k=i+60. #test month
   y_train=data[i:j,"y"]
   y_test=data[k,"y"]
-  x_train=data[i:j,] |> select(!c("month","y","CPI"))
-  x_train_cpi=data[i:j,"CPI"] 
-  x_test=data[k,] |> select(!c("month","y","CPI"))
-  x_test_cpi=data[k,"CPI"]
+  x_train=data[i:j,] |> select(!c("month","y","inflation"))
+  x_train_inflation=data[i:j,"inflation"] 
+  x_test=data[k,] |> select(!c("month","y","inflation"))
+  x_test_inflation=data[k,"inflation"]
   
   
-  #collect Principal Components and train the lasso regression.
+  #collect 8 Principal Components and train the lasso regression.
   PC=predict(PCA,newdata = x_train)[,1:dim]
-  PCs=cbind(PC,x_train_cpi)
+  PCs=cbind(PC,x_train_inflation)
   
   #Calculate scores for testing
   PC_test=predict(PCA,newdata = x_test)[,1:dim]
-  PC_test2=append(PC_test,x_test_cpi)
+  PC_test2=append(PC_test,x_test_inflation)
   
   #find lambda
   cv_model <- cv.glmnet(PCs, y_train, alpha = 1,nfolds = 3)
@@ -85,27 +80,20 @@ rsquare_test <- function(yt,y_predicted) {
 
 rep_test2 <- function(data){
   
-  result <-foreach (x = 50:100,.combine = "rbind") %dopar% {
+  result <-foreach (x = 108:137,.combine = "rbind") %dopar% {
     pca_lasso_test2(i = x,data)
   }
   result=data.frame(result)
-  colnames(result) <- c("month","CPI_predicted","CPI_true")
+  colnames(result) <- c("month","y_predicted","y_true")
   return(result)
   
 }
 
 result <- rep_test2(data_1)
-yp=result$CPI_predicted
-yt=result$CPI_true
+yp=result$y_predicted
+yt=result$y_true
 
-#R-Square of price prediction
 rsquare_test(yt,yp)
-
-result=result |> mutate(inflation_predicted=log(CPI_predicted)-log(lag(CPI_true,n=12)),
-                        inflation_true=log(CPI_true)-log(lag(CPI_true,n=12))
-                        )
-result2=result |> filter(is.na(inflation_predicted)==F)
-rsquare_test(result2$inflation_true,y_predicted = result2$inflation_predicted)
 
 
 
