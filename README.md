@@ -12,3 +12,5 @@ In model 3 I use all the data to train the global best lambda of Lasso Regressio
 In model 4 I use x_t-2 and y_t-1 to predict yt, which means Lag=2 for x and Lag=1 for CPI as an independent variable in Lasso Regression.
 It seems model 4 has the best performance for CPI.
 
+Model 6 changes and finds the best windowsize.
+The final model with results are in final_results_CPI_price.R and final_results_PPI_price.R. They're also in the ECON5811_Final_Report.ipynb.
